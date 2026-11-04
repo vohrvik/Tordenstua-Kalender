@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tordenstua – 3-dagerskalender</title>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.20/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/google-calendar@6.1.20/index.global.min.js"></script>
+<style>
+:root{font-family:Inter,Arial,Helvetica,sans-serif;color:#e9f1fc;background:#0b1321}*{box-sizing:border-box}body{margin:0;padding:22px}header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}h1{font-size:clamp(24px,3vw,42px);letter-spacing:-.03em;margin:0}header p{margin:5px 0 0;color:#a9b8d0}.shell{background:white;color:#172338;border-radius:17px;padding:16px;min-height:80vh}#calendar{height:calc(100vh - 155px);min-height:650px}.fc .fc-toolbar-title{font-size:clamp(18px,2vw,27px);font-weight:750}.fc .fc-col-header-cell{background:#f0f5fc}.fc .fc-col-header-cell-cushion{padding:12px 5px;font-size:clamp(15px,1.5vw,22px);text-transform:capitalize}.fc .fc-timegrid-slot{height:3.3em}.fc .fc-timegrid-axis-cushion,.fc .fc-timegrid-slot-label-cushion{font-size:15px}.fc .fc-event{font-size:clamp(13px,1.1vw,18px);border-radius:7px;padding:4px;border:0;box-shadow:0 2px 5px #0002}.fc .fc-event-main{padding:4px}.fc .fc-button-primary{background:#223f68;border-color:#223f68}.fc .fc-button-primary:hover{background:#345b90}.fc .fc-day-today{background:#eef6ff!important}.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}button{cursor:pointer;background:#203854;color:white;border:1px solid #51677f;border-radius:8px;padding:9px 14px;font-size:15px}#setup{background:#fff7e7;color:#473512;padding:16px 20px;border-radius:12px;margin-bottom:14px}#setup input{width:min(100%,440px);padding:10px;border:1px solid #ad9c73;border-radius:7px;font:inherit}#setup button{background:#273c60}#status{margin:8px 0;color:#85521b;font-size:14px}a{color:#174ca4}footer{font-size:12px;color:#afbed2;margin-top:12px}@media(max-width:700px){body{padding:8px}.shell{padding:5px}#calendar{height:calc(100vh - 130px)}.fc .fc-toolbar{display:flex;flex-wrap:wrap;gap:8px}.fc .fc-timegrid-slot{height:2.5em}.fc .fc-button{padding:7px}.fc .fc-event{font-size:12px}}
+</style>
+</head>
+<body>
+<header><div><h1>Tordenstua</h1><p>Kalender – tre dager</p></div><div class="controls"><button id="refresh">Oppdater nå</button><button id="fullscreen">Fullskjerm</button></div></header>
+<section id="setup" hidden><strong>Oppsett: Google Kalender</strong><p>For å vise avtalene fra <b>tordenstua@gmail.com</b>, opprett en Google Calendar API-nøkkel og sørg for at kalenderen er offentlig med synlige avtaledetaljer. Nøkkelen kan lagres lokalt i denne nettleseren. Bruk en nøkkel begrenset til Calendar API og riktig nettsted ved publisering.</p><input id="apiKey" type="text" placeholder="Lim inn Google Calendar API-nøkkel" autocomplete="off"><button id="save">Koble til kalender</button> <button id="test">Test tilkobling</button><p id="status" style="white-space:pre-wrap"></p><small><a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noreferrer">Aktiver Google Calendar API</a> · <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer">Opprett API-nøkkel</a></small></section>
+<div class="shell"><div id="calendar"></div></div>
+<footer>Viser 3 dager fra i dag · Tidssone: Europe/Oslo · Oppdaterer hvert 5. minutt · Hendelser åpnes i Google Kalender</footer>
+<script>
+(function(){
+const CALENDAR_ID='tordenstua@gmail.com';
+const STORAGE_KEY='tordenstua_google_calendar_api_key';
+const keyField=document.getElementById('apiKey');
+const setup=document.getElementById('setup');
+const status=document.getElementById('status');
+let calendar;
+function init(apiKey){
+ if(calendar)calendar.destroy();
+ calendar=new FullCalendar.Calendar(document.getElementById('calendar'),{
+   initialView:'timeGridThreeDay',
+   views:{timeGridThreeDay:{type:'timeGrid',duration:{days:3},dateAlignment:'day'}},
+   initialDate:new Date(),
+   timeZone:'Europe/Oslo',
+   locale:'nb',
+   firstDay:1,
+   headerToolbar:{left:'prev,next today',center:'title',right:''},
+   buttonText:{today:'I dag'},
+   nowIndicator:true,
+   allDayText:'Hele dagen',
+   allDaySlot:true,
+   slotMinTime:'06:00:00',slotMaxTime:'23:00:00',
+   scrollTime:'08:00:00',
+   slotDuration:'00:30:00',
+   height:'100%',
+   expandRows:true,
+   eventMinHeight:38,
+   eventTimeFormat:{hour:'2-digit',minute:'2-digit',hour12:false},
+   googleCalendarApiKey:apiKey,
+   events:{googleCalendarId:CALENDAR_ID, failure:function(err){setup.hidden=false;status.textContent='Kalenderen kunne ikke hentes. '+(err&&err.message?err.message:'Ukjent feil')+' – trykk Test tilkobling for feildetaljer.';}},
+   eventContent:function(info){
+     const box=document.createElement('div');
+     const time=document.createElement('div');time.style.fontWeight='700';time.textContent=info.timeText||'Hele dagen';
+     const title=document.createElement('div');title.style.fontWeight='650';title.textContent=info.event.title;
+     box.append(time,title);
+     const location=info.event.extendedProps.location;
+     if(location){const loc=document.createElement('div');loc.style.fontSize='.85em';loc.textContent=location;box.append(loc)}
+     return {domNodes:[box]};
+   },
+   eventClick:function(info){if(info.event.url){info.jsEvent.preventDefault();window.open(info.event.url,'_blank','noopener,noreferrer')}}
+ });
+ calendar.render();
+ setup.hidden=!!apiKey;
+}
+let saved='';try{saved=localStorage.getItem(STORAGE_KEY)||''}catch(e){}
+keyField.value=saved;
+init(saved);
+document.getElementById('save').addEventListener('click',()=>{const key=keyField.value.trim();if(!key){status.textContent='Skriv inn en API-nøkkel.';return}try{localStorage.setItem(STORAGE_KEY,key)}catch(e){}status.textContent='';init(key)});
+document.getElementById('test').addEventListener('click',async()=>{
+ const key=keyField.value.trim();
+ if(!key){status.textContent='Lim inn API-nøkkelen først.';return;}
+ status.textContent='Tester tilgang ...';
+ const url='https://www.googleapis.com/calendar/v3/calendars/'+encodeURIComponent(CALENDAR_ID)+'/events?maxResults=1&singleEvents=true&key='+encodeURIComponent(key);
+ try {
+   const r=await fetch(url,{cache:'no-store'});
+   const body=await r.json();
+   if(r.ok){status.textContent='Google Calendar API svarer OK (HTTP '+r.status+'). Prøv «Koble til kalender». Hvis det fortsatt feiler: send feilmeldingen fra kalenderen, men ikke API-nøkkelen.';}
+   else {status.textContent='Google API-feil: HTTP '+r.status+' – '+(body.error?.message||'Ukjent feil')+'\nSjekk riktig kalender-ID og tilgangstillatelser.';}
+ } catch(e){
+   status.textContent='Nettleseren kunne ikke kontakte Google API: '+e.message+'\nSideadresse: '+location.protocol+'\nHvis den er file:, start lokal webserver med: python3 -m http.server 8000 og åpne http://localhost:8000/tordenstua-3-dagerskalender-diagnose.html';
+ }
+});
+document.getElementById('refresh').addEventListener('click',()=>{if(calendar){calendar.today();calendar.refetchEvents()}});
+document.getElementById('fullscreen').addEventListener('click',()=>{if(!document.fullscreenElement){document.documentElement.requestFullscreen?.()}else{document.exitFullscreen?.()}});
+setInterval(()=>{if(calendar){calendar.today();calendar.refetchEvents()}},300000);
+})();
+</script>
+</body>
+</html>
